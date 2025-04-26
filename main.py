@@ -53,18 +53,17 @@ def check_inventory():
                     prev_has_stock = False
                 else:
                     print(f"[{time.ctime()}] Henüz stok yok. Bekleniyor...", flush=True)
-        time.sleep(300)  # 5 dakikada bir kontrol
-
-@app.before_first_request
-def start_background_task():
-    thread = Thread(target=check_inventory)
-    thread.daemon = True
-    thread.start()
-    print("[BOT] Arka planda Tesla stok kontrolü başlatıldı.", flush=True)
+        time.sleep(300)
 
 @app.route('/')
 def home():
     return "Tesla Stok Botu Aktif!"
 
+def start_background_task():
+    t = Thread(target=check_inventory)
+    t.daemon = True
+    t.start()
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    start_background_task()
+    app.run(host='0.0.0.0', port=10000)
