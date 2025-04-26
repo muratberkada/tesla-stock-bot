@@ -3,12 +3,7 @@ from threading import Thread
 import requests
 import time
 
-# Flask server
 app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Tesla Stok Botu Aktif!"
 
 # Tesla API URL
 TESLA_API_URL = ("https://www.tesla.com/inventory/api/v1/inventory-results?query="
@@ -16,11 +11,11 @@ TESLA_API_URL = ("https://www.tesla.com/inventory/api/v1/inventory-results?query
                  "\"market\":\"TR\",\"language\":\"tr\",\"super_region\":\"europe\"},"
                  "\"offset\":0,\"count\":50}")
 
-# Telegram bilgileri
+# Telegram bot bilgileri
 BOT_TOKEN = "7658744054:AAGElNA0jOysddJBZIZAPGtkADb_dSAXh6E"
 CHAT_ID = "1148447451"
 
-# Header
+# HTTP header
 HEADERS = {
     "User-Agent": "Mozilla/5.0"
 }
@@ -29,6 +24,7 @@ prev_has_stock = False
 
 def check_inventory():
     global prev_has_stock
+    print("[BOT] Tesla stok kontrol botu başladı.", flush=True)
     while True:
         try:
             response = requests.get(TESLA_API_URL, headers=HEADERS, timeout=30)
@@ -37,33 +33,38 @@ def check_inventory():
             if isinstance(total_stock, str):
                 total_stock = int(total_stock)
         except Exception as e:
-            print(f"[{time.ctime()}] Hata oluştu: {e}")
+            print(f"[{time.ctime()}] Hata oluştu: {e}", flush=True)
         else:
             if total_stock > 0:
                 if not prev_has_stock:
-                    print(f"[{time.ctime()}] 🚗 Stok geldi! Bildirim gönderiliyor...")
+                    print(f"[{time.ctime()}] 🚗 Stok bulundu! Telegram bildirimi gönderiliyor...", flush=True)
                     try:
                         telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-                        params = {"chat_id": CHAT_ID, "text": "🚗 Tesla Model Y stok geldi!"}
+                        params = {"chat_id": CHAT_ID, "text": "🚗 Tesla Model Y stoğa eklendi!"}
                         requests.get(telegram_url, params=params, timeout=5)
                     except Exception as te:
-                        print(f"[{time.ctime()}] Telegram bildirimi hatası: {te}")
+                        print(f"[{time.ctime()}] Telegram bildirimi hatası: {te}", flush=True)
                     prev_has_stock = True
                 else:
-                    print(f"[{time.ctime()}] Stok devam ediyor ({total_stock} araç).")
+                    print(f"[{time.ctime()}] 🚗 Stok mevcut ({total_stock} araç).", flush=True)
             else:
                 if prev_has_stock:
-                    print(f"[{time.ctime()}] Stok tükendi.")
+                    print(f"[{time.ctime()}] Stok tükendi.", flush=True)
                     prev_has_stock = False
                 else:
-                    print(f"[{time.ctime()}] Henüz stok yok...")
+                    print(f"[{time.ctime()}] Henüz stok yok. Bekleniyor...", flush=True)
         time.sleep(300)  # 5 dakikada bir kontrol
 
-def start_background_tasks():
+@app.before_first_request
+def start_background_task():
     thread = Thread(target=check_inventory)
     thread.daemon = True
     thread.start()
+    print("[BOT] Arka planda Tesla stok kontrolü başlatıldı.", flush=True)
+
+@app.route('/')
+def home():
+    return "Tesla Stok Botu Aktif!"
 
 if __name__ == "__main__":
-    start_background_tasks()
     app.run(host="0.0.0.0", port=10000)
